@@ -29,7 +29,7 @@
 
   app.post('/register',  (req, res) => {
 
-    let password = "123456";
+   const { name, email, password } = req.body;
 
     bcrypt.genSalt(10, (err, salt) => {
 
@@ -41,15 +41,15 @@
       bcrypt.hash(password, salt, async (err, hash) => {
 
       let createduser = await User.create({
-        name: "bunty",
-        email: "bunty@example.com",
+        name: name,
+        email: email,
         password: hash,
       });
 
       let token = jwt.sign({ email: createduser.email }, 'bunty', { expiresIn: '1h' });
       res.cookie('token', token);
       res.send(createduser);
-      console.log(token);
+      
       
       });
     });
@@ -69,27 +69,22 @@
 
 
   app.post('/login', async (req, res) => {
-    console.log("POST LOGIN HIT");
-
-    const user = await User.findOne({ email: "bunty@example.com" });
-    console.log(user);
-
+    
+    const { email, password } = req.body;
+    const user = await User.findOne({ email: email });
+    
     if (!user) {
       res.send("User not found");
       return;
     }
-
-    let password = "123456"
-   
-
+    
     const isMatch = await bcrypt.compare(password, user.password);
-        console.log(isMatch);
-
+        
           if (isMatch) {
             let token = jwt.sign({ email: user.email }, 'bunty', { expiresIn: '1h' });
             res.cookie('token', token);
               res.send("Login Success");
-              console.log(token);
+             
 
           } else {
               res.send("Invalid Password");
