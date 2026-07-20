@@ -3,6 +3,11 @@
   const bcrypt = require('bcrypt');
   const jwt = require('jsonwebtoken');
   const cookie = require('cookie-parser');
+  const connectDB = require('./config/Db');
+
+
+
+  connectDB();
 
 
 
