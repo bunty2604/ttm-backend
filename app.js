@@ -3,15 +3,18 @@
   const bcrypt = require('bcrypt');
   const jwt = require('jsonwebtoken');
   const cookie = require('cookie-parser');
-  const connectDB = require('./config/Db');
-
+  const cors = require('cors');
+  const connectDB = require('./config/db');
 
 
   connectDB();
 
 
-
   const app = express();
+  app.use(cors({
+    origin: 'http://localhost:5176',
+    credentials: true
+  }));
   app.use(cookie());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
@@ -32,32 +35,26 @@
 
 
 
-  app.post('/register',  (req, res) => {
+  app.post('/register', async (req, res) => {
+    try {
+      const { name, email, password } = req.body;
 
-   const { name, email, password } = req.body;
+      const salt = await bcrypt.genSalt(10);
+      const hash = await bcrypt.hash(password, salt);
 
-    bcrypt.genSalt(10, (err, salt) => {
-
-    if (err) {
-      console.log(err);
-      return;
-    }
-      
-      bcrypt.hash(password, salt, async (err, hash) => {
-
-      let createduser = await User.create({
-        name: name,
-        email: email,
+      const createduser = await User.create({
+        name,
+        email,
         password: hash,
       });
 
-      let token = jwt.sign({ email: createduser.email }, 'bunty', { expiresIn: '1h' });
-      res.cookie('token', token);
-      res.send(createduser);
-      
-      
-      });
-    });
+      const token = jwt.sign({ email: createduser.email }, 'bunty', { expiresIn: '1h' });
+      res.cookie('token', token, { httpOnly: true });
+      res.status(201).json({ status: 'success', data: createduser });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ status: 'fail', message: 'Failed to register user' });
+    }
   });
 
 
@@ -74,32 +71,33 @@
 
 
   app.post('/login', async (req, res) => {
-    
-    const { email, password } = req.body;
-    const user = await User.findOne({ email: email });
-    
-    if (!user) {
-      res.send("User not found");
-      return;
-    }
-    
-    const isMatch = await bcrypt.compare(password, user.password);
-        
-          if (isMatch) {
-            let token = jwt.sign({ email: user.email }, 'bunty', { expiresIn: '1h' });
-            res.cookie('token', token);
-              res.send("Login Success");
-             
+    try {
+      const { email, password } = req.body;
+      const user = await User.findOne({ email });
 
-          } else {
-              res.send("Invalid Password");
-          }
-    });
+      if (!user) {
+        return res.status(404).json({ status: 'fail', message: 'User not found' });
+      }
+
+      const isMatch = await bcrypt.compare(password, user.password);
+
+      if (isMatch) {
+        const token = jwt.sign({ email: user.email }, 'bunty', { expiresIn: '1h' });
+        res.cookie('token', token, { httpOnly: true });
+        res.status(200).json({ status: 'success', message: 'Login Success' });
+      } else {
+        res.status(401).json({ status: 'fail', message: 'Invalid Password' });
+      }
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ status: 'fail', message: 'Login failed' });
+    }
+  });
 
 
     app.get('/logout', (req, res) => {
       res.clearCookie('token');
-      res.send("Logout Success");
+      res.status(200).json({ status: 'success', message: 'Logout Success' });
     });
 
   
